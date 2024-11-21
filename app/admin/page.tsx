@@ -20,6 +20,7 @@ import {
   Transaction,
   sendAndConfirmTransaction,
   LAMPORTS_PER_SOL,
+  ComputeBudgetProgram,
 } from "@solana/web3.js";
 import {
   PhantomWalletAdapter,
@@ -305,38 +306,76 @@ export default function Page() {
       console.log("poolAta->", poolAta.toString());
       console.log("raffleId->",raffleId);
 
+      const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+        microLamports: 20000,
+      });
+      
       // Call the create_raffle function
-      const signature = await program.rpc.createRaffle(
-        raffleId,
-        reserved,
-        price,
-        prize,
-        autoGenerate,
-        lotteryMultiplier,
-        accountFee, {
-          accounts: {
-            admin: wallet.publicKey,
-            globalState,
-            pool,
-            poolNativeAccount,
-            payTokenMint: PAYTOKEN_MINT,
-            poolAta,
-            systemProgram: SystemProgram.programId,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            rent: SYSVAR_RENT_PUBKEY
+      const tx = new Transaction().add(addPriorityFee)
+      .add(
+        program.instruction.createRaffle(
+          raffleId,
+          reserved,
+          price,
+          prize,
+          autoGenerate,
+          lotteryMultiplier,
+          accountFee, {
+            accounts: {
+              admin: wallet.publicKey,
+              globalState,
+              pool,
+              poolNativeAccount,
+              payTokenMint: PAYTOKEN_MINT,
+              poolAta,
+              systemProgram: SystemProgram.programId,
+              tokenProgram: TOKEN_PROGRAM_ID,
+              rent: SYSVAR_RENT_PUBKEY
+            }
           }
-        }
-      )
-
-      console.log("Your transaction signature for creating a new raffle", signature);
-
-      const poolData = await program.account.pool.fetch(pool);
-      setCurrentPool(poolData);
-      console.log("new created poolData:", poolData);
-      const allPoolAccount = await program.account.pool.all();
-
-      console.log("allPoolAccount:", allPoolAccount);
-      setPools(allPoolAccount);
+        )
+      );
+      tx.feePayer = wallet.publicKey;
+      let blockhash = (await program.provider.connection.getLatestBlockhash('finalized')).blockhash;
+      tx.recentBlockhash = blockhash;
+      // transaction.partialSign(mint);
+      console.log(wallet);
+      const signedTransaction = await wallet.signTransaction(tx);
+      // Send the signed transaction
+      try {
+        const txSign = await connection.sendRawTransaction(signedTransaction.serialize());
+        console.log("Your transaction signature for creating a new raffle", txSign);
+        const poolData = await program.account.pool.fetch(pool);
+        setCurrentPool(poolData);
+        console.log("new created poolData:", poolData);
+        const allPoolAccount = await program.account.pool.all();
+  
+        console.log("allPoolAccount:", allPoolAccount);
+        setPools(allPoolAccount);
+      } catch (error) {
+        console.log(error);
+      }
+      // const signature = await program.rpc.createRaffle(
+      //   raffleId,
+      //   reserved,
+      //   price,
+      //   prize,
+      //   autoGenerate,
+      //   lotteryMultiplier,
+      //   accountFee, {
+      //     accounts: {
+      //       admin: wallet.publicKey,
+      //       globalState,
+      //       pool,
+      //       poolNativeAccount,
+      //       payTokenMint: PAYTOKEN_MINT,
+      //       poolAta,
+      //       systemProgram: SystemProgram.programId,
+      //       tokenProgram: TOKEN_PROGRAM_ID,
+      //       rent: SYSVAR_RENT_PUBKEY
+      //     }
+      //   }
+      // )
     } catch (error) {
       console.log("Error while creating a new raffle:", error);
     }

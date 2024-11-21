@@ -33,6 +33,7 @@ import {
   sendAndConfirmTransaction,
   LAMPORTS_PER_SOL,
   Connection,
+  ComputeBudgetProgram,
 } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
@@ -161,7 +162,6 @@ export default function Main() {
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
-    console.log(wallet, isBuy);
 
     const fetchData = async () => {
       if (!isBuy) {
@@ -192,7 +192,6 @@ export default function Main() {
           );
           
           const tempCompletedPools = allPoolAccount.filter((item: any) => Object.keys(item.account.status).toString() === "completed");
-          console.log(tempCompletedPools);
           setCompletedPool(tempCompletedPools);
   
           setTicketQuantities(
@@ -250,6 +249,7 @@ export default function Main() {
         let provider;
 
         provider = getUserProvider();
+
         if(!provider) return;
         if(!signTransaction) return;
 
@@ -317,6 +317,11 @@ export default function Main() {
             new PublicKey(referral)
           );
 
+          const addPriorityFee = ComputeBudgetProgram.setComputeUnitPrice({
+            microLamports: 20000,
+          });
+          transaction.add(addPriorityFee);
+
           // Check if the associated token account exists
           const referralAtaInfo = await provider.connection.getAccountInfo(referralAta);
           if (!referralAtaInfo) {
@@ -352,7 +357,7 @@ export default function Main() {
 
         const totalPrice = totalTicket * 10 ** DECIMALS;
         const accountFeeSol = Number(poolData.accountFee) * totalTicket / Number(poolData.totalTicket);
-
+        console.log("sdsfd");
         // Call the buy_tickets function
         const buyTx = program.instruction.buyTickets(
           [...poolData.newRandomAddress.toBuffer()],
@@ -364,7 +369,7 @@ export default function Main() {
           {
             accounts: {
               pool,
-              poolNativeAccount,
+              admin: ADMIN_ADDRESS,
               payTokenMint:PAYTOKEN_MINT,
               buyer: publicKey,
               userInfo,
@@ -383,47 +388,64 @@ export default function Main() {
             },
           }
         );
+
         transaction.add(buyTx);
         // Set the fee payer to the sender's public key
         transaction.feePayer = publicKey;
+        console.log("transaction->", transaction);
+        
         // Get the recent blockhash
-        const recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
-        // Sign the transaction
-        transaction.recentBlockhash = recentBlockhash;
+        const blockhash = (await program.provider.connection.getLatestBlockhash('finalized')).blockhash;
+        transaction.recentBlockhash = blockhash;
+
+        console.log("transaction->", transaction);
+        const simulationResult = await connection.simulateTransaction(transaction);
+        console.log("Simulation Logs:", simulationResult.value);
+
         // transaction.partialSign(mint);
         const signedTransaction = await signTransaction(transaction);
 
-        // Send the signed transaction
-        const tx = await connection.sendRawTransaction(signedTransaction.serialize());
-        const allPoolAccount = await program.account.pool.all();
+        try {
+          // Send the signed transaction
+          const tx = await connection.sendRawTransaction(signedTransaction.serialize(), {
+            skipPreflight: false,
+          });
+          console.log("tx->", tx);
+          await delay(3000);
+          const allPoolAccount = await program.account.pool.all();
 
-        setPools(allPoolAccount);
-        let activeRaffles = allPoolAccount.filter(
-          (item: any) => ["active", "processing"].includes(Object.keys(item.account.status).toString())
-        );
-        // setLiveRaffles(activeRaffles);
+          setPools(allPoolAccount);
+          let activeRaffles = allPoolAccount.filter(
+            (item: any) => ["active", "processing"].includes(Object.keys(item.account.status).toString())
+          );
+          // setLiveRaffles(activeRaffles);
         
-        setCompletedPool(allPoolAccount.filter((item: any) => Object.keys(item.account.status).toString() == "completed"));
-        setTicketQuantities(
-          new Array(
-            allPoolAccount.filter(
-              (item: any) => ["active", "processing"].includes(Object.keys(item.account.status).toString())
-            ).length + 1
-          ).fill(1)
-        );
-        // Sort activeRaffles by prize in descending order
-        activeRaffles.sort((a: any, b: any) => b.account.prize - a.account.prize);
+          setCompletedPool(allPoolAccount.filter((item: any) => Object.keys(item.account.status).toString() == "completed"));
+          setTicketQuantities(
+            new Array(
+              allPoolAccount.filter(
+                (item: any) => ["active", "processing"].includes(Object.keys(item.account.status).toString())
+              ).length + 1
+            ).fill(1)
+          );
+          // Sort activeRaffles by prize in descending order
+          activeRaffles.sort((a: any, b: any) => b.account.prize - a.account.prize);
 
-        const biggestPrize = activeRaffles[0]?.account.prize || 0;
-        setBiggestLottery(biggestPrize);
+          const biggestPrize = activeRaffles[0]?.account.prize || 0;
+          setBiggestLottery(biggestPrize);
 
-        // Move the biggest raffle to the beginning of the array
-        setLiveRaffles([activeRaffles[0], ...activeRaffles.slice(1)]);
-        // await handleMyTickets();
-        setIsBuyTicket(true);
-        const userInfoData = await program.account.userInfo.fetch(userInfo);
-        console.log("userInfoData->", userInfoData);
-        toast.success("You bought tickets successfully!");
+          // Move the biggest raffle to the beginning of the array
+          setLiveRaffles([activeRaffles[0], ...activeRaffles.slice(1)]);
+          // await handleMyTickets();
+          await delay(3000);
+          const userInfoData = await program.account.userInfo.fetch(userInfo);
+          console.log("userInfoData->", userInfoData);
+          setIsBuyTicket(true);
+          toast.success("You bought tickets successfully!");
+        } catch (error) {
+          console.log(error);
+        }
+        
       }
     } catch (error:any) {
       if(error.message.includes("ReferralError")) {

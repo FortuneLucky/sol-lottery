@@ -137,7 +137,7 @@
           "isSigner": false
         },
         {
-          "name": "poolNativeAccount",
+          "name": "admin",
           "isMut": true,
           "isSigner": false
         },
@@ -328,11 +328,6 @@
           "isSigner": false
         },
         {
-          "name": "poolNativeAccount",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "payTokenMint",
           "isMut": true,
           "isSigner": false
@@ -494,6 +489,62 @@
         },
         {
           "name": "buyerIndex",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "withdrawFund",
+      "accounts": [
+        {
+          "name": "globalState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "pool",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "payTokenMint",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "signer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "adminAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "poolAta",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "tokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "associatedTokenProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": [
+        {
+          "name": "raffleId",
           "type": "u32"
         }
       ]
@@ -807,7 +858,7 @@
       "msg": "The auto generate value is not correct!"
     }
   ],
-  "metadata":{
-    "address":"53KX2Hgg85aNNaXBEZBtAhyf3VGEkiuMyYF2HatWzXpH"
+  "metadata": {
+    "address":"41U5fmLp1zJRtCsGwXe2CQtFoURf7N3dgQ57uz3cS1VD"
   }
 }
