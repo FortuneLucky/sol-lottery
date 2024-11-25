@@ -338,13 +338,18 @@ export default function Page() {
       tx.feePayer = wallet.publicKey;
       let blockhash = (await program.provider.connection.getLatestBlockhash('finalized')).blockhash;
       tx.recentBlockhash = blockhash;
-      // transaction.partialSign(mint);
-      console.log(wallet);
+      const simulationResult = await connection.simulateTransaction(tx);
+      console.log("Simulation Logs:", simulationResult.value);
       const signedTransaction = await wallet.signTransaction(tx);
       // Send the signed transaction
       try {
-        const txSign = await connection.sendRawTransaction(signedTransaction.serialize());
+        const txSign = await connection.sendRawTransaction(signedTransaction.serialize(), {
+          skipPreflight: false,
+        });
         console.log("Your transaction signature for creating a new raffle", txSign);
+        const confirmation = await connection.confirmTransaction(txSign, 'confirmed');
+        console.log('Transaction confirmed:', confirmation);
+
         const poolData = await program.account.pool.fetch(pool);
         setCurrentPool(poolData);
         console.log("new created poolData:", poolData);
@@ -380,6 +385,8 @@ export default function Page() {
       console.log("Error while creating a new raffle:", error);
     }
   };
+
+  const delay = (milliseconds: number) => new Promise(resolve => setTimeout(resolve, milliseconds))
 
 
   return (

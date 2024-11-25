@@ -254,6 +254,8 @@ export default function Main() {
         if(!signTransaction) return;
 
         const program = new Program(IDL as Idl, PROGRAM_ID, provider);
+        
+        
         const [pool, _] = await PublicKey.findProgramAddress(
           [
             Buffer.from(POOL_SEED),
@@ -357,7 +359,6 @@ export default function Main() {
 
         const totalPrice = totalTicket * 10 ** DECIMALS;
         const accountFeeSol = Number(poolData.accountFee) * totalTicket / Number(poolData.totalTicket);
-        console.log("sdsfd");
         // Call the buy_tickets function
         const buyTx = program.instruction.buyTickets(
           [...poolData.newRandomAddress.toBuffer()],
@@ -392,16 +393,11 @@ export default function Main() {
         transaction.add(buyTx);
         // Set the fee payer to the sender's public key
         transaction.feePayer = publicKey;
-        console.log("transaction->", transaction);
         
         // Get the recent blockhash
         const blockhash = (await program.provider.connection.getLatestBlockhash('finalized')).blockhash;
         transaction.recentBlockhash = blockhash;
-
-        console.log("transaction->", transaction);
         const simulationResult = await connection.simulateTransaction(transaction);
-        console.log("Simulation Logs:", simulationResult.value);
-
         // transaction.partialSign(mint);
         const signedTransaction = await signTransaction(transaction);
 
@@ -411,7 +407,9 @@ export default function Main() {
             skipPreflight: false,
           });
           console.log("tx->", tx);
-          await delay(3000);
+          const confirmation = await connection.confirmTransaction(tx, 'confirmed');
+          console.log('Transaction confirmed:', confirmation);
+
           const allPoolAccount = await program.account.pool.all();
 
           setPools(allPoolAccount);
@@ -437,13 +435,13 @@ export default function Main() {
           // Move the biggest raffle to the beginning of the array
           setLiveRaffles([activeRaffles[0], ...activeRaffles.slice(1)]);
           // await handleMyTickets();
-          await delay(3000);
           const userInfoData = await program.account.userInfo.fetch(userInfo);
           console.log("userInfoData->", userInfoData);
           setIsBuyTicket(true);
           toast.success("You bought tickets successfully!");
         } catch (error) {
           console.log(error);
+          toast.error("You bought tickets was fail, Please try again!");
         }
         
       }
